@@ -18,6 +18,7 @@ pub enum Token {
 pub enum ParseError {
     InvalidNumber(ParseFloatError),
     UnexpectedEndOfInput,
+    InvalidToken,
 }
 
 pub fn tokenize(input: String) -> Result<Vec<Token>, ParseError> {
@@ -63,7 +64,8 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, ParseError> {
             't' => assert_next_chars(&mut input, "rue").map(|_| Token::Boolean(true))?,
             'f' => assert_next_chars(&mut input, "alse").map(|_| Token::Boolean(false))?,
             'n' => assert_next_chars(&mut input, "ull").map(|_| Token::Null)?,
-            _ => return Err(ParseError::UnexpectedEndOfInput),
+            ' ' | '\n' | '\t' => continue,
+            _ => return Err(ParseError::InvalidToken),
         };
 
         tokens.push(token);
@@ -75,7 +77,7 @@ pub fn tokenize(input: String) -> Result<Vec<Token>, ParseError> {
 fn assert_next_chars(input: &mut Peekable<Chars>, expected: &str) -> Result<(), ParseError> {
     let mut next_chars = vec![];
     for _ in 0..expected.len() {
-        next_chars.push(input.next().unwrap());
+        next_chars.push(input.next().ok_or(ParseError::UnexpectedEndOfInput)?);
     }
 
     if next_chars.iter().collect::<String>().as_str() == expected {
@@ -128,7 +130,7 @@ mod tests {
 
     #[test]
     fn test_tokenize_literals() {
-        let input = "truefalsenull";
+        let input = " truefalsenull";
 
         let tokens = tokenize(input.to_string()).unwrap();
 
@@ -145,6 +147,10 @@ mod tests {
         assert!(matches!(tokens, Err(ParseError::InvalidNumber(_))));
 
         let input = "a";
+        let tokens = tokenize(input.to_string());
+        assert!(matches!(tokens, Err(ParseError::InvalidToken)));
+
+        let input = "tru";
         let tokens = tokenize(input.to_string());
         assert!(matches!(tokens, Err(ParseError::UnexpectedEndOfInput)));
     }
